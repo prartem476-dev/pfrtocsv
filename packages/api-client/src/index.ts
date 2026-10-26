@@ -30,6 +30,9 @@ export interface ExportRequest {
   options: ExportOptions;
 }
 
+export const DEFAULT_CLOUD_API_URL = "https://pfrtocsv.vercel.app/api/v1";
+export const DEFAULT_LOCAL_API_URL = "http://localhost:8000/api/v1";
+
 function resolveDefaultBaseUrl(): string {
   // Check Vite environment variable if available
   try {
@@ -53,7 +56,15 @@ function resolveDefaultBaseUrl(): string {
     return `${window.location.origin}/api/v1`;
   }
 
-  return "http://localhost:8000/api/v1";
+  // Inside Chrome Extension (chrome-extension://), use cloud API by default (with local fallback)
+  if (
+    typeof window !== "undefined" &&
+    window.location.protocol === "chrome-extension:"
+  ) {
+    return DEFAULT_CLOUD_API_URL;
+  }
+
+  return DEFAULT_LOCAL_API_URL;
 }
 
 export class Pdf2CsvApiClient {
@@ -61,6 +72,26 @@ export class Pdf2CsvApiClient {
 
   constructor(baseUrl: string = resolveDefaultBaseUrl()) {
     this.baseUrl = baseUrl.replace(/\/+$/, "");
+  }
+
+  private async _fetchWithFallback(
+    endpointPath: string,
+    init: RequestInit
+  ): Promise<Response> {
+    const primaryUrl = `${this.baseUrl}${endpointPath}`;
+    try {
+      return await fetch(primaryUrl, init);
+    } catch (primaryErr) {
+      const fallbackBase =
+        this.baseUrl === DEFAULT_LOCAL_API_URL
+          ? DEFAULT_CLOUD_API_URL
+          : DEFAULT_LOCAL_API_URL;
+      try {
+        return await fetch(`${fallbackBase}${endpointPath}`, init);
+      } catch {
+        throw primaryErr;
+      }
+    }
   }
 
   /**
@@ -78,14 +109,14 @@ export class Pdf2CsvApiClient {
    * POST /api/v1/parse/fast — Vector table extraction via pdfplumber.
    */
   async parseStandard(file: File | Blob, filename?: string): Promise<TableData> {
-    return this._postPdf(`${this.baseUrl}/parse/fast`, file, filename);
+    return this._postPdf("/parse/fast", file, filename);
   }
 
   /**
    * POST /api/v1/parse/ai — Multimodal table extraction via Gemini Flash Structured Outputs.
    */
   async parseAi(file: File | Blob, filename?: string): Promise<TableData> {
-    return this._postPdf(`${this.baseUrl}/parse/ai`, file, filename);
+    return this._postPdf("/parse/ai", file, filename);
   }
 
   /**
@@ -102,7 +133,7 @@ export class Pdf2CsvApiClient {
       },
     };
 
-    const response = await fetch(`${this.baseUrl}/export/csv`, {
+    const response = await this._fetchWithFallback("/export/csv", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -118,13 +149,13 @@ export class Pdf2CsvApiClient {
     return response.blob();
   }
 
-  private async _postPdf(url: string, file: File | Blob, filename?: string): Promise<TableData> {
+  private async _postPdf(endpointPath: string, file: File | Blob, filename?: string): Promise<TableData> {
     const formData = new FormData();
     const resolvedName =
       filename || (file instanceof File ? file.name : "document.pdf");
     formData.append("file", file, resolvedName);
 
-    const response = await fetch(url, {
+    const response = await this._fetchWithFallback(endpointPath, {
       method: "POST",
       body: formData,
     });

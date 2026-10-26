@@ -6,6 +6,7 @@
   "scripts": {
     "dev:web": "pnpm --filter @pdf2csv/web dev",
     "dev:ext": "pnpm --filter @pdf2csv/extension dev",
+    "build": "pnpm --filter @pdf2csv/web build",
     "build:web": "pnpm --filter @pdf2csv/web build",
     "build:ext": "pnpm --filter @pdf2csv/extension build",
     "typecheck": "pnpm -r typecheck"

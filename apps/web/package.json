@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5173",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node -e \"const fs = require('fs'); fs.cpSync('dist', '../../dist', { recursive: true });\"",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc --noEmit"
   },
