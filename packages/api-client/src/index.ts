@@ -4,6 +4,11 @@ export type EncodingOption = "utf-8-sig" | "cp1251" | "utf-8";
 
 export type ParserMode = "fast" | "ai";
 
+import {
+  generateCsvBlobClientSide,
+  parsePdfClientSide,
+} from "./clientParser";
+
 export interface TableData {
   headers: string[];
   rows: string[][];
@@ -123,30 +128,34 @@ export class Pdf2CsvApiClient {
    * POST /api/v1/export/csv — Exports modified TableData to a CSV Blob with chosen delimiter & encoding.
    */
   async exportCsv(table: TableData, options: Partial<ExportOptions> = {}): Promise<Blob> {
+    const resolvedOptions: ExportOptions = {
+      delimiter: options.delimiter ?? ";",
+      encoding: options.encoding ?? "utf-8-sig",
+      include_headers: options.include_headers ?? true,
+      filename: options.filename ?? "extracted_table.csv",
+    };
     const payload: ExportRequest = {
       table,
-      options: {
-        delimiter: options.delimiter ?? ";",
-        encoding: options.encoding ?? "utf-8-sig",
-        include_headers: options.include_headers ?? true,
-        filename: options.filename ?? "extracted_table.csv",
-      },
+      options: resolvedOptions,
     };
 
-    const response = await this._fetchWithFallback("/export/csv", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const response = await this._fetchWithFallback("/export/csv", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    if (!response.ok) {
-      const errorDetail = await this._extractError(response);
-      throw new Error(`CSV export failed (${response.status}): ${errorDetail}`);
+      if (response.ok) {
+        return response.blob();
+      }
+    } catch {
+      // Fall back to client-side CSV generation
     }
 
-    return response.blob();
+    return generateCsvBlobClientSide(table, resolvedOptions);
   }
 
   private async _postPdf(endpointPath: string, file: File | Blob, filename?: string): Promise<TableData> {
@@ -155,17 +164,20 @@ export class Pdf2CsvApiClient {
       filename || (file instanceof File ? file.name : "document.pdf");
     formData.append("file", file, resolvedName);
 
-    const response = await this._fetchWithFallback(endpointPath, {
-      method: "POST",
-      body: formData,
-    });
+    try {
+      const response = await this._fetchWithFallback(endpointPath, {
+        method: "POST",
+        body: formData,
+      });
 
-    if (!response.ok) {
-      const errorDetail = await this._extractError(response);
-      throw new Error(`PDF parse failed (${response.status}): ${errorDetail}`);
+      if (response.ok) {
+        return (await response.json()) as TableData;
+      }
+    } catch {
+      // Fall back to client-side PDF table extraction
     }
 
-    return (await response.json()) as TableData;
+    return parsePdfClientSide(file, resolvedName);
   }
 
   private async _extractError(response: Response): Promise<string> {

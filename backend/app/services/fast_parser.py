@@ -54,14 +54,31 @@ def extract_tables_fast(pdf_bytes: bytes, filename: str | None = None) -> TableD
         r + [""] * (max_cols - len(r)) for r in raw_rows
     ]
 
+    # Detect 2-row merged table headers (e.g., "Координаты" spanning X, Y, H columns)
+    header_row = normalized_rows[0]
+    start_data_idx = 1
+    if (
+        len(normalized_rows) >= 2
+        and any(c == "" for c in normalized_rows[0])
+        and any(c == "" for c in normalized_rows[1])
+        and any(normalized_rows[0][i] == "" and normalized_rows[1][i] != "" for i in range(max_cols))
+    ):
+        row0 = normalized_rows[0]
+        row1 = normalized_rows[1]
+        header_row = [
+            row1[i] if row1[i] != "" else row0[i]
+            for i in range(max_cols)
+        ]
+        start_data_idx = 2
+
     headers = [
         h if h else f"Column {idx + 1}"
-        for idx, h in enumerate(normalized_rows[0])
+        for idx, h in enumerate(header_row)
     ]
     data_rows: list[list[str]] = []
-    for row in normalized_rows[1:]:
+    for row in normalized_rows[start_data_idx:]:
         # Skip repeated header rows across multi-page documents
-        if row == normalized_rows[0]:
+        if row == normalized_rows[0] or row == header_row:
             continue
         data_rows.append(row)
 

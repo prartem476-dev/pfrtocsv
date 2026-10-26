@@ -32,6 +32,8 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix="/api/v1", tags=["PDF2CSV v1"])
+app.include_router(api_router, prefix="/v1", include_in_schema=False)
+app.include_router(api_router, prefix="", include_in_schema=False)
 
 
 @app.get("/health", tags=["Health"])
