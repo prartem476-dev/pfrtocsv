@@ -84,6 +84,27 @@ export function usePdfWorkspace() {
     }
   };
 
+  const handleLoadSampleKgsPdf = async () => {
+    setIsParsing(true);
+    setError(null);
+    try {
+      const response = await fetch("/sample_kgs_ru.pdf");
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить демонстрационный каталог КГС.");
+      }
+      const blob = await response.blob();
+      const demoFile = new File([blob], "каталог_координат_КГС_3906-25.pdf", {
+        type: "application/pdf",
+      });
+      await handleFileSelect(demoFile);
+    } catch (err) {
+      setIsParsing(false);
+      setError(
+        err instanceof Error ? err.message : "Ошибка загрузки демо КГС."
+      );
+    }
+  };
+
   const handleExportCsv = async () => {
     if (!table) return;
     setIsExporting(true);
@@ -123,6 +144,7 @@ export function usePdfWorkspace() {
     handleFileSelect,
     handleModeChange,
     handleLoadSamplePdf,
+    handleLoadSampleKgsPdf,
     handleExportCsv,
   };
 }

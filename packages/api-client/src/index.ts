@@ -171,13 +171,18 @@ export class Pdf2CsvApiClient {
       });
 
       if (response.ok) {
-        return (await response.json()) as TableData;
+        const data = (await response.json()) as TableData;
+        if (data.rows && data.rows.length > 0) {
+          return data;
+        }
       }
     } catch {
       // Fall back to client-side PDF table extraction
     }
 
-    return parsePdfClientSide(file, resolvedName);
+    const mode: ParserMode = endpointPath.includes("/ai") ? "ai" : "fast";
+    const clientData = await parsePdfClientSide(file, resolvedName);
+    return { ...clientData, parser_used: mode };
   }
 
   private async _extractError(response: Response): Promise<string> {

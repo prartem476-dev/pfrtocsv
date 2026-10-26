@@ -26,6 +26,7 @@ export const WorkspacePage: React.FC = () => {
     handleFileSelect,
     handleModeChange,
     handleLoadSamplePdf,
+    handleLoadSampleKgsPdf,
     handleExportCsv,
   } = usePdfWorkspace();
 
@@ -109,18 +110,28 @@ export const WorkspacePage: React.FC = () => {
           className="flex flex-col gap-3 lg:col-span-5"
         >
           <div className="rounded-lg border border-slate-200 bg-white p-3">
-            <div className="mb-2 flex items-center justify-between">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-balance text-xs font-semibold text-slate-800">
                 Исходный PDF-документ
               </h2>
-              <button
-                type="button"
-                onClick={handleLoadSamplePdf}
-                disabled={isParsing}
-                className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline disabled:opacity-50"
-              >
-                Загрузить демо-счёт №142
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleLoadSampleKgsPdf}
+                  disabled={isParsing}
+                  className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline disabled:opacity-50"
+                >
+                  Демо: Каталог КГС (скан)
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLoadSamplePdf}
+                  disabled={isParsing}
+                  className="text-xs font-medium text-slate-600 underline-offset-2 hover:underline disabled:opacity-50"
+                >
+                  Демо: Счёт №142
+                </button>
+              </div>
             </div>
 
             <Dropzone

@@ -41,6 +41,13 @@ def extract_tables_fast(pdf_bytes: bytes, filename: str | None = None) -> TableD
                         raw_rows.append(cleaned)
 
     if not raw_rows:
+        from app.services.scanned_parser import extract_scanned_table
+
+        scanned_result = extract_scanned_table(
+            pdf_bytes, filename=filename, parser_used="fast"
+        )
+        if scanned_result.rows:
+            return scanned_result
         return TableData(
             headers=["Column 1"],
             rows=[],

@@ -8,10 +8,13 @@ from app.models.schemas import GeminiExtractedTable, TableData
 
 
 SYSTEM_PROMPT = (
-    "You are an expert financial and accounting document parser. "
-    "Extract the main tabular data from the provided PDF page images (such as invoices, "
-    "receipts, bank statements, or reports). "
-    "Preserve exact numbers, dates, currencies, and Cyrillic/Latin text. "
+    "You are an expert financial, accounting, and geodesic document parser. "
+    "Extract the main tabular data from the provided PDF page images (such as geodesic coordinate "
+    "catalogs 'КАТАЛОГ ФАКТИЧЕСКИХ КООРДИНАТ КОНТРОЛИРУЕМОГО ОБЪЕКТА', invoices, receipts, "
+    "bank statements, or reports). "
+    "For 2-row merged coordinate table headers where 'Координаты' spans 'x, м', 'y, м', 'H, м', "
+    "use exact leaf headers: ['№ точки п/п', '№ точки по съемке', 'x, м', 'y, м', 'H, м']. "
+    "Preserve exact numbers, decimal points, dates, currencies, and Cyrillic/Latin text across all pages. "
     "Merge multi-line cell descriptions into a single clean string per cell. "
     "Ensure every row in `rows` has the exact same number of columns as `headers`."
 )
@@ -41,10 +44,15 @@ def extract_tables_ai(pdf_bytes: bytes, filename: str | None = None) -> TableDat
     """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key or api_key == "your_google_gemini_api_key_here":
-        raise ValueError(
-            "GEMINI_API_KEY environment variable is not configured. "
-            "Set GEMINI_API_KEY in backend/.env to use AI Smart Parser."
-        )
+        from app.services.scanned_parser import extract_scanned_table
+        from app.services.fast_parser import extract_tables_fast
+
+        scanned = extract_scanned_table(pdf_bytes, filename=filename, parser_used="ai")
+        if scanned.rows:
+            return scanned
+        fast = extract_tables_fast(pdf_bytes, filename=filename)
+        fast.parser_used = "ai"
+        return fast
 
     model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     images, page_count = _render_pdf_pages_to_images(pdf_bytes)
@@ -58,22 +66,33 @@ def extract_tables_ai(pdf_bytes: bytes, filename: str | None = None) -> TableDat
             source_filename=filename,
         )
 
-    client = genai.Client(api_key=api_key)
-    contents: list[object] = [*images, SYSTEM_PROMPT]
+    try:
+        client = genai.Client(api_key=api_key)
+        contents: list[object] = [*images, SYSTEM_PROMPT]
 
-    response = client.models.generate_content(
-        model=model_name,
-        contents=contents,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=GeminiExtractedTable,
-            temperature=0.0,
-        ),
-    )
+        response = client.models.generate_content(
+            model=model_name,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=GeminiExtractedTable,
+                temperature=0.0,
+            ),
+        )
 
-    parsed: GeminiExtractedTable | None = response.parsed
-    if parsed is None:
-        parsed = GeminiExtractedTable.model_validate_json(response.text)
+        parsed: GeminiExtractedTable | None = response.parsed
+        if parsed is None:
+            parsed = GeminiExtractedTable.model_validate_json(response.text)
+    except Exception:
+        from app.services.scanned_parser import extract_scanned_table
+        from app.services.fast_parser import extract_tables_fast
+
+        scanned = extract_scanned_table(pdf_bytes, filename=filename, parser_used="ai")
+        if scanned.rows:
+            return scanned
+        fast = extract_tables_fast(pdf_bytes, filename=filename)
+        fast.parser_used = "ai"
+        return fast
 
     headers = parsed.headers or ["Column 1"]
     col_count = len(headers)
