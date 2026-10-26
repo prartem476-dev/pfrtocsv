@@ -1,0 +1,16 @@
+{
+  "name": "pdf-to-csv-pro",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Hybrid PDF-to-CSV SaaS Monorepo (FastAPI + React Web + Chrome Extension MV3)",
+  "scripts": {
+    "dev:web": "pnpm --filter @pdf2csv/web dev",
+    "dev:ext": "pnpm --filter @pdf2csv/extension dev",
+    "build:web": "pnpm --filter @pdf2csv/web build",
+    "build:ext": "pnpm --filter @pdf2csv/extension build",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

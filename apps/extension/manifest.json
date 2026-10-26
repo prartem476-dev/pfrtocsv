@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "PDF2CSV AI — Извлечение таблиц из PDF в CSV",
+  "version": "1.0.0",
+  "description": "Мгновенная конвертация открытых в браузере PDF-счетов и выписок в Excel CSV (UTF-8 BOM / Windows-1251).",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*",
+    "<all_urls>"
+  ],
+  "action": {
+    "default_title": "PDF2CSV AI",
+    "default_popup": "index.html"
+  },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/index.ts"],
+      "run_at": "document_idle"
+    }
+  ]
+}
